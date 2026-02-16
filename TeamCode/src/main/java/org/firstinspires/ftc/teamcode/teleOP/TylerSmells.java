@@ -6,8 +6,8 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@TeleOp(name = "TeleOpDecodeFinal (Blocks to Java)")
-public class TeleOpDecodeFinal extends LinearOpMode {
+@TeleOp(name = "TylerSmells", group="Linear OpMode")
+public class TylerSmells extends LinearOpMode {
 
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotor lf;
@@ -18,7 +18,7 @@ public class TeleOpDecodeFinal extends LinearOpMode {
     private Servo roulette;
     private DcMotor BallTransfer;
     private DcMotor RubberBandIntake;
-    private final boolean prevRightBumper = false;
+    private boolean prevRightBumper = false;
 
 
     /**
@@ -106,6 +106,7 @@ public class TeleOpDecodeFinal extends LinearOpMode {
 
                 // End driving section
                 // Start Ball Launcher (Motor)
+                /*
                 boolean rightBumper = gamepad2.right_bumper;
                 if (rightBumper && !prevRightBumper) { //If right bumper is pressed
                     spinny.setPower(0.6); //Set spinny power to 0.6
@@ -174,6 +175,8 @@ public class TeleOpDecodeFinal extends LinearOpMode {
                     RubberBandIntake.setPower(1);
                 }
                 // End Artifact Intake (Motor)
+
+                 */
             }
         }
     }
