@@ -1,9 +1,10 @@
 package org.firstinspires.ftc.teamcode.teleOP;
 
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-
+@Disabled
 @TeleOp(name="Debug Test", group = "Linear OpMode")
 public class DebugTest extends LinearOpMode {
     @Override

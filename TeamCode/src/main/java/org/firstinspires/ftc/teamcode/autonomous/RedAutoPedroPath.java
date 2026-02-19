@@ -1,15 +1,16 @@
 package org.firstinspires.ftc.teamcode.autonomous;
 
+
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-//import com.bylazar.configurables.annotations.Configurable;
-//import com.bylazar.telemetry.TelemetryManager;
-//import com.bylazar.telemetry.PanelsTelemetry;
+import com.bylazar.configurables.annotations.Configurable;
+import com.bylazar.telemetry.TelemetryManager;
+import com.bylazar.telemetry.PanelsTelemetry;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 
+import org.firstinspires.ftc.robotcore.external.hardware.camera.BuiltinCameraDirection;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import com.pedropathing.geometry.BezierCurve;
@@ -18,39 +19,123 @@ import com.pedropathing.follower.Follower;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.util.Timer;
-@Autonomous(name="Red Auto Pedro Path", group="Six Seven")
-public class RedAutoPedroPath extends OpMode {
 
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.Servo;
+
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+
+import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+
+import java.util.List;
+
+@Autonomous(name="RedAutoPedroPath", group="Six Seven")
+public class RedAutoPedroPath extends OpMode {
+    private TelemetryManager panelsTelemetry;
     public Follower follower; // Pedro Pathing follower instance
     private Paths paths; // Paths defined in the Paths class
-
     private Timer pathTimer, actionTimer, opmodeTimer;
+    private Servo roulette; //Servos
+    private DcMotor RubberBandIntake, BallTransfer; //DcMotors for Intake/Outtake
+    private DcMotorEx Flywheel;
+    private AprilTagProcessor aprilTag;
+    private VisionPortal visionPortal;
 
-/*
-    public enum PathState {
-        //Start POSITION_END  POSITION
-        //Drive > MOVEMENT STATE
-        //SHOOT > ATTEMPT TO SCORE ARTIFACT
 
-        //DRIVE_STARTPOST_SHOOT_POS
-
-        //SHOOT_PRELOAD
-    }
-    PathState pathState;
-*/
     private int pathState; // Current autonomous path state (state machine)
+    public enum ShootingState {
+        IDLE,
+        POSITION_1,
+        FIRE_1,
+        POSITION_2,
+        FIRE_2,
+        POSITION_3,
+        FIRE_3,
+        DONE
+    }
+
+    private ShootingState shootingState = ShootingState.IDLE;
+    private boolean shooting = false;
+    private int tag;
+
+    //This shoot be velocity
+    private final double Shooting_Power = 0.575;
+    private final double transfer_power = -0.7;
+    private final double intake_power = 1;
+    private int lastSeenTag = -1;
 
 
     @Override
     public void init(){
+        panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
         pathTimer = new Timer();
+        actionTimer = new Timer();
         opmodeTimer = new Timer();
         opmodeTimer.resetTimer();
+
+        initAprilTag();
+
+        roulette = hardwareMap.get(Servo.class, "roulette");
+
+        Flywheel = hardwareMap.get(DcMotorEx.class, "spinny");
+        BallTransfer = hardwareMap.get(DcMotor.class, "Ball Transfer");
+        RubberBandIntake = hardwareMap.get(DcMotor.class, "Rubber Band Intake");
+
+        Flywheel.setDirection(DcMotor.Direction.FORWARD);
+        BallTransfer.setDirection(DcMotor.Direction.FORWARD);
+        RubberBandIntake.setDirection(DcMotor.Direction.FORWARD);
+
+        Flywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
 
         follower = Constants.createFollower(hardwareMap);
         paths = new Paths(follower); //Build paths
         follower.setStartingPose(new Pose(126.16829745596868, 121.0019569471624, Math.toRadians(125)));
-        telemetry.addData("Status", "Initialized");
+        panelsTelemetry.addData("Status", "Initialized");
+        panelsTelemetry.addLine("Scanning AprilTags...");
+        panelsTelemetry.update(telemetry);
+
+    }
+    /** This method is called continuously after Init while waiting for "play". **/
+    @Override
+    public void init_loop() {
+        List<AprilTagDetection> detections = aprilTag.getDetections();
+
+        if (!detections.isEmpty()) {
+
+            for (AprilTagDetection tag : detections) {
+                if (tag.id == 21 || tag.id == 22 || tag.id == 23) {
+                    lastSeenTag = tag.id;
+                }
+            }
+
+            telemetry.addData("Last Seen Tag", lastSeenTag);
+            telemetry.addData("Auto Choice", "too lazy to write method");
+        } else {
+            telemetry.addLine("No tag visible");
+            telemetry.addData("Last Seen Tag", lastSeenTag);
+        }
+
+        telemetry.update();
+    }
+    /** This method is called once at the start of the OpMode.
+     * It runs all the setup actions, including building paths and starting the path system**/
+    @Override
+    public void start(){
+        opmodeTimer.resetTimer();
+        setPathState(0);
+        tag = lastSeenTag;
+        if (tag == -1) {
+            tag = 22; // default → PPG
+        }
+        visionPortal.stopStreaming();
+        visionPortal.close();
+        panelsTelemetry.addData("FINAL TAG", tag);
+        panelsTelemetry.addData("RUNNING", "too lazy to write method");
+        panelsTelemetry.update();
     }
 
     @Override
@@ -58,11 +143,28 @@ public class RedAutoPedroPath extends OpMode {
         follower.update();
         autonomousPathUpdate();
 
-        telemetry.addData("path state", pathState);
-        telemetry.addData("x", follower.getPose().getX());
-        telemetry.addData("y", follower.getPose().getY());
-        telemetry.addData("heading", follower.getPose().getHeading());
-        telemetry.update();
+        if (shooting) {
+            if (tag == 22) shootPPG(Shooting_Power, transfer_power);
+            else if (tag == 21) shootPGP();
+            else if (tag == 23) shootGPP();
+        }
+        else {
+            BallTransfer.setPower(0);
+            Flywheel.setPower(0);
+        }
+
+        panelsTelemetry.addData("path state", pathState);
+        panelsTelemetry.addData("x", follower.getPose().getX());
+        panelsTelemetry.addData("y", follower.getPose().getY());
+        panelsTelemetry.addData("heading", Math.toDegrees(follower.getPose().getHeading()) );
+        panelsTelemetry.update(telemetry);
+    }
+
+    @Override
+    public void stop() {
+        panelsTelemetry.addLine("Stop");
+        panelsTelemetry.addData("Elapsed Time", opmodeTimer.getElapsedTime());
+        panelsTelemetry.update(telemetry);
     }
 
     public static class Paths {
@@ -176,70 +278,103 @@ public class RedAutoPedroPath extends OpMode {
         // Add your state machine Here
         // Access paths with paths.pathName
         // Refer to the Pedro Pathing Docs (Auto Example) for an example state machine
+
         switch(pathState) {
             case 0:
                 follower.followPath(paths.Path1);
                 setPathState(1);
                 break;
             case 1:
-                if(!follower.isBusy()) {
-                    telemetry.addLine("Path 1 Done");
+                if (!follower.isBusy() && shootingState == ShootingState.IDLE) {
+                    panelsTelemetry.addLine("Path 1 Done");
+                    panelsTelemetry.update();
+                    patternShooting();  // start shooting
                 }
-                follower.followPath(paths.Path2);
-                setPathState(2);
+                if (!follower.isBusy() && shootingState == ShootingState.DONE) {
+                    panelsTelemetry.addLine("First Set of 3 Balls Shot");
+                    panelsTelemetry.update();
+                    follower.followPath(paths.Path2);
+                    setPathState(2);
+                    shootingState = ShootingState.IDLE;  // reset for next use
+                }
+
                 break;
             case 2:
                 if(!follower.isBusy()) {
-                    telemetry.addLine("Path 2 Done");
+                    panelsTelemetry.addLine("Path 2 Done");
+                    panelsTelemetry.update();
+                    follower.followPath(paths.Path3);
+                    setPathState(3);
                 }
-                follower.followPath(paths.Path3);
-                setPathState(3);
+
                 break;
             case 3:
                 if(!follower.isBusy()) {
-                    telemetry.addLine("Path 3 Done");
+                    panelsTelemetry.addLine("Path 3 Done");
+                    panelsTelemetry.update();
+                    follower.followPath(paths.Path4);
+                    setPathState(4);
                 }
-                follower.followPath(paths.Path4);
-                setPathState(4);
                 break;
             case 4:
                 if(!follower.isBusy()) {
-                    telemetry.addLine("Path 4 Done");
+                    panelsTelemetry.addLine("Path 4 Done");
+                    panelsTelemetry.update();
+                    follower.followPath(paths.Path5);
+                    setPathState(5);
                 }
-                follower.followPath(paths.Path5);
-                setPathState(5);
+
                 break;
             case 5:
-                if(!follower.isBusy()) {
-                    telemetry.addLine("Path 5 Done");
+                if (!follower.isBusy() && shootingState == ShootingState.IDLE) {
+                    panelsTelemetry.addLine("Path 5 Done");
+                    panelsTelemetry.update();
+                    patternShooting();  // start shooting
                 }
-                follower.followPath(paths.Path6);
-                setPathState(6);
+                if (!follower.isBusy() && shootingState == ShootingState.DONE) {
+                    panelsTelemetry.addLine("Second Set of 3 Balls Shot");
+                    panelsTelemetry.update();
+                    follower.followPath(paths.Path6);
+                    setPathState(6);
+                    shootingState = ShootingState.IDLE;  // reset for next use
+                }
+
                 break;
             case 6:
                 if(!follower.isBusy()) {
-                    telemetry.addLine("Path 6 Done");
+                    panelsTelemetry.addLine("Path 6 Done");
+                    panelsTelemetry.update();
+                    follower.followPath(paths.Path7);
+                    setPathState(7);
                 }
-                follower.followPath(paths.Path7);
-                setPathState(7);
+
                 break;
             case 7:
                 if(!follower.isBusy()) {
-                    telemetry.addLine("Path 7 Done");
+                    panelsTelemetry.addLine("Path 7 Done");
+                    panelsTelemetry.update();
+                    follower.followPath(paths.Path8);
+                    setPathState(8);
                 }
-                follower.followPath(paths.Path8);
-                setPathState(8);
                 break;
             case 8:
-                if(!follower.isBusy()) {
-                    telemetry.addLine("Path 8 Done");
+                if (!follower.isBusy() && shootingState == ShootingState.IDLE) {
+                    panelsTelemetry.addLine("Path 8 Done");
+                    panelsTelemetry.update();
+                    patternShooting();  // start shooting
                 }
-                follower.followPath(paths.Path9);
-                setPathState(9);
+                if (!follower.isBusy() && shootingState == ShootingState.DONE) {
+                    panelsTelemetry.addLine("Third Set of 3 Balls Shot");
+                    panelsTelemetry.update();
+                    follower.followPath(paths.Path9);
+                    setPathState(9);
+                    shootingState = ShootingState.IDLE;  // reset for next use
+                }
                 break;
             case 9:
                 if(!follower.isBusy()) {
-                    telemetry.addLine("Path 9 Done");
+                    panelsTelemetry.addLine("Path 9 Done");
+                    panelsTelemetry.update();
                 }
                 break;
         }
@@ -248,8 +383,206 @@ public class RedAutoPedroPath extends OpMode {
     public void setPathState(int pState) {
         pathState = pState;
         pathTimer.resetTimer();
+        actionTimer.resetTimer();
+
     }
 
+    public void patternShooting(){
+            shooting = true;
+            shootingState = ShootingState.POSITION_1;
+            actionTimer.resetTimer();
+    }
+
+    public void setShootingState(ShootingState pState) {
+        shootingState = pState;
+        actionTimer.resetTimer();
+    }
+
+    public void shootPPG(double Shooting_Power, double transfer_power) {
+        panelsTelemetry.addData("Auto Pattern:" ,"Running PPG Auto");
+
+        if(shooting) {Flywheel.setPower(Shooting_Power);}
+
+        if(!shooting) {return;}
+
+        switch (shootingState) {
+            case POSITION_1:
+                roulette.setPosition(1.0 / 280.0);
+                setShootingState(ShootingState.FIRE_1);
+                break;
+            case FIRE_1:
+                if(actionTimer.getElapsedTime() > 400) {
+                    BallTransfer.setPower(transfer_power);
+                    setShootingState(ShootingState.POSITION_2);
+                }
+                break;
+            case POSITION_2:
+                if (actionTimer.getElapsedTime() > 550) {
+                    BallTransfer.setPower(0);
+                    roulette.setPosition(129.0 / 280.0);
+                    setShootingState(ShootingState.FIRE_2);
+                }
+                break;
+            case FIRE_2:
+                if (actionTimer.getElapsedTime() > 700) {
+                    BallTransfer.setPower(transfer_power);
+                    setShootingState(ShootingState.POSITION_3);
+                }
+                break;
+            case POSITION_3:
+                if (actionTimer.getElapsedTime() > 550) {
+                    BallTransfer.setPower(0);
+                    roulette.setPosition(261.0 / 280.0);
+                    setShootingState(ShootingState.FIRE_3);
+                }
+                break;
+
+            case FIRE_3:
+                if (actionTimer.getElapsedTime() > 700) {
+                    BallTransfer.setPower(transfer_power);
+                    setShootingState(ShootingState.DONE);
+                    shooting = false;
+                }
+                break;
+        }
+
+    }
+
+    //Tell Tyler to edit this too lazy myself
+    public void shootPGP() {
+
+        panelsTelemetry.addData("Auto Pattern:" ,"Running PGP Auto");
+        if(shooting) {Flywheel.setPower(Shooting_Power);}
+        if(!shooting) {return;}
+
+        switch (shootingState) {
+            case POSITION_1:
+                roulette.setPosition(1.0 / 280.0);
+                setShootingState(ShootingState.FIRE_1);
+                break;
+            case FIRE_1:
+                if(actionTimer.getElapsedTime() > 400) {
+                    BallTransfer.setPower(transfer_power);
+                    setShootingState(ShootingState.POSITION_2);
+                }
+                break;
+            case POSITION_2:
+                if (actionTimer.getElapsedTime() > 550) {
+                    BallTransfer.setPower(0);
+                    roulette.setPosition(129.0 / 280.0);
+                    setShootingState(ShootingState.FIRE_2);
+                }
+                break;
+            case FIRE_2:
+                if (actionTimer.getElapsedTime() > 700) {
+                    BallTransfer.setPower(transfer_power);
+                    setShootingState(ShootingState.POSITION_3);
+                }
+                break;
+            case POSITION_3:
+                if (actionTimer.getElapsedTime() > 550) {
+                    BallTransfer.setPower(0);
+                    roulette.setPosition(261.0 / 280.0);
+                    setShootingState(ShootingState.FIRE_3);
+                }
+                break;
+
+            case FIRE_3:
+                if (actionTimer.getElapsedTime() > 700) {
+                    BallTransfer.setPower(transfer_power);
+                    setShootingState(ShootingState.DONE);
+                    shooting = false;
+                }
+                break;
+        }
+
+    }
+    //Tell tyler to edit this too lazy myself
+    public void shootGPP() {
+
+        panelsTelemetry.addData("Auto Pattern:" ,"Running GPP Auto");
+        if(shooting) {Flywheel.setPower(Shooting_Power);}
+        if(!shooting) {return;}
+
+        switch (shootingState) {
+            case POSITION_1:
+                roulette.setPosition(1.0 / 280.0);
+                setShootingState(ShootingState.FIRE_1);
+                break;
+            case FIRE_1:
+                if(actionTimer.getElapsedTime() > 400) {
+                    BallTransfer.setPower(transfer_power);
+                    setShootingState(ShootingState.POSITION_2);
+                }
+                break;
+            case POSITION_2:
+                if (actionTimer.getElapsedTime() > 550) {
+                    BallTransfer.setPower(0);
+                    roulette.setPosition(129.0 / 280.0);
+                    setShootingState(ShootingState.FIRE_2);
+                }
+                break;
+            case FIRE_2:
+                if (actionTimer.getElapsedTime() > 700) {
+                    BallTransfer.setPower(transfer_power);
+                    setShootingState(ShootingState.POSITION_3);
+                }
+                break;
+            case POSITION_3:
+                if (actionTimer.getElapsedTime() > 550) {
+                    BallTransfer.setPower(0);
+                    roulette.setPosition(261.0 / 280.0);
+                    setShootingState(ShootingState.FIRE_3);
+                }
+                break;
+
+            case FIRE_3:
+                if (actionTimer.getElapsedTime() > 700) {
+                    BallTransfer.setPower(transfer_power);
+                    setShootingState(ShootingState.DONE);
+                    shooting = false;
+                }
+                break;
+        }
+
+    }
+
+    private void initAprilTag() {
+
+        // Create the AprilTag processor the easy way.
+        aprilTag = AprilTagProcessor.easyCreateWithDefaults();
+        // Create the vision portal the easy way.
+        visionPortal = VisionPortal.easyCreateWithDefaults(
+                hardwareMap.get(WebcamName.class, "Webcam 1"), aprilTag);
+
+
+    }
+
+    private void telemetryAprilTag() {
+
+        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
+        panelsTelemetry.addData("# AprilTags Detected", currentDetections.size());
+
+        // Step through the list of detections and display info for each one.
+        for (AprilTagDetection detection : currentDetections) {
+            if (detection.metadata != null) {
+                panelsTelemetry.addLine(String.format("\n==== (ID %d) %s", detection.id, detection.metadata.name));
+                panelsTelemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)", detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z));
+                panelsTelemetry.addLine(String.format("PRY %6.1f %6.1f %6.1f  (deg)", detection.ftcPose.pitch, detection.ftcPose.roll, detection.ftcPose.yaw));
+                panelsTelemetry.addLine(String.format("RBE %6.1f %6.1f %6.1f  (inch, deg, deg)", detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation));
+            } else {
+                panelsTelemetry.addLine(String.format("\n==== (ID %d) Unknown", detection.id));
+                panelsTelemetry.addLine(String.format("Center %6.0f %6.0f   (pixels)", detection.center.x, detection.center.y));
+            }
+        }   // end for() loop
+
+        // Add "key" information to telemetry
+        panelsTelemetry.addLine("\nkey:\nXYZ = X (Right), Y (Forward), Z (Up) dist.");
+        panelsTelemetry.addLine("PRY = Pitch, Roll & Yaw (XYZ Rotation)");
+        panelsTelemetry.addLine("RBE = Range, Bearing & Elevation");
+
+        panelsTelemetry.update();
+    }
 }
 
 
