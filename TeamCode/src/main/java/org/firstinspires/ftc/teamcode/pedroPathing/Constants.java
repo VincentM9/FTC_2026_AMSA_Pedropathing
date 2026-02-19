@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.pedroPathing;
 
+import com.pedropathing.control.FilteredPIDFCoefficients;
 import com.pedropathing.control.PIDFCoefficients;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.follower.FollowerConstants;
@@ -20,6 +21,8 @@ public class Constants {
             .lateralZeroPowerAcceleration(-63.459726338005964)
             .translationalPIDFCoefficients(new PIDFCoefficients(0.0737, 0, 0.01, 0.0232))
             .headingPIDFCoefficients(new PIDFCoefficients(0.5, 0, .01, .025))
+            .drivePIDFCoefficients(new FilteredPIDFCoefficients(.025, 0, .00001, .6, .01))
+            .centripetalScaling(.067)
             ;
 
 
@@ -38,7 +41,7 @@ public class Constants {
 
     public static PinpointConstants localizerConstants = new PinpointConstants()
             .forwardPodY(-6.5)
-            .strafePodX(1.375)
+            .strafePodX(-1.375)
             .distanceUnit(DistanceUnit.INCH)
             .hardwareMapName("pinpoint")
             .encoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD)
