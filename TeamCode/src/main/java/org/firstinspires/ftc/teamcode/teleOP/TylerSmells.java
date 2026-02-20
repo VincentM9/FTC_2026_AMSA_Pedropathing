@@ -142,10 +142,8 @@ public class TylerSmells extends OpMode {
         lr.setPower(backLeftPower);
         rr.setPower(backRightPower);
 
-        telemetry.addData("Status", "Run Time: " + runtime.toString());
-        telemetry.addData("Front left/Right", "%4.2f, %4.2f", frontLeftPower, frontRightPower);
-        telemetry.addData("Back  left/Right", "%4.2f, %4.2f", backLeftPower, backRightPower);
-        telemetry.update();
+        //telemetry.addData("Front left/Right", "%4.2f, %4.2f", frontLeftPower, frontRightPower);
+        //telemetry.addData("Back  left/Right", "%4.2f, %4.2f", backLeftPower, backRightPower);
 
         /** End Of Driving Code **/
 
@@ -216,7 +214,10 @@ public class TylerSmells extends OpMode {
         }
         // End Artifact Intake (Motor)
 
+        panelsTelemetry.addData("Status", "Run Time: " + runtime.toString());
+        panelsTelemetry.update();
         /** End of Six Seven Code  **/
+
 
     }
 
@@ -224,7 +225,7 @@ public class TylerSmells extends OpMode {
     /** We do not use this because everything should automatically disable **/
     public void stop(){
         panelsTelemetry.addLine("Stop");
-        panelsTelemetry.addData("Elapsed Time", opmodeTimer.getElapsedTime());
+        panelsTelemetry.addData("Elapsed Time", runtime);
         panelsTelemetry.update(telemetry);
     }
 
@@ -260,7 +261,6 @@ public class TylerSmells extends OpMode {
         panelsTelemetry.debug("Right Stick X: " + g1.right_stick_x);
         panelsTelemetry.debug("Right Stick Y: " + g1.right_stick_y);
 
-        panelsTelemetry.update(telemetry);
     }
     public void shootingSequence() {
         switch (shootingStep) {

@@ -25,6 +25,12 @@ import com.pedropathing.util.*;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
+import com.qualcomm.robotcore.hardware.I2cDevice;
+import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
+import com.qualcomm.robotcore.hardware.I2cDeviceSynchSimple;
+
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -131,6 +137,7 @@ class LocalizationTest extends OpMode {
     @Override
     public void init() {
         follower.setStartingPose(new Pose(72,72));
+        ;
     }
 
     /** This initializes the PoseUpdater, the mecanum drive motors, and the Panels telemetry. */
@@ -145,6 +152,8 @@ class LocalizationTest extends OpMode {
 
     @Override
     public void start() {
+
+
         follower.startTeleopDrive();
         follower.update();
     }

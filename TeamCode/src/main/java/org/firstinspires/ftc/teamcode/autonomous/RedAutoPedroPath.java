@@ -63,7 +63,7 @@ public class RedAutoPedroPath extends OpMode {
 
     //This shoot be velocity
     private final double Shooting_Power = 0.575;
-    private final double transfer_power = -0.7;
+    private final double transfer_power = 0.7;
     private final double intake_power = 1;
     private int lastSeenTag = -1;
 
@@ -113,7 +113,14 @@ public class RedAutoPedroPath extends OpMode {
             }
 
             telemetry.addData("Last Seen Tag", lastSeenTag);
-            telemetry.addData("Auto Choice", "too lazy to write method");
+            if(lastSeenTag == 21){
+                telemetry.addData("Auto Choice", "GPP");
+            } else if (lastSeenTag == 22) {
+                telemetry.addData("Auto Choice", "PGP");
+            } else if (lastSeenTag ==23) {
+                telemetry.addData("Auto Choice", "PPG");
+            }
+
         } else {
             telemetry.addLine("No tag visible");
             telemetry.addData("Last Seen Tag", lastSeenTag);
@@ -144,9 +151,10 @@ public class RedAutoPedroPath extends OpMode {
         autonomousPathUpdate();
 
         if (shooting) {
-            if (tag == 22) shootPPG(Shooting_Power, transfer_power);
-            else if (tag == 21) shootPGP();
-            else if (tag == 23) shootGPP();
+            //if (tag == 22) shootPPG();
+            //else if (tag == 21) shootPGP();
+            //else if (tag == 23) shootGPP();
+            shootPPG();
         }
         else {
             BallTransfer.setPower(0);
@@ -203,7 +211,7 @@ public class RedAutoPedroPath extends OpMode {
                     .addPath(
                             new BezierLine(
                                     new Pose(99.630, 83.090),
-                                    new Pose(112.078, 83.339)
+                                    new Pose(110.158, 83.339)
                             )
                     )
                     .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
@@ -212,8 +220,8 @@ public class RedAutoPedroPath extends OpMode {
             Path4 = follower.pathBuilder()
                     .addPath(
                             new BezierLine(
-                                    new Pose(112.078, 83.339),
-                                    new Pose(128.272, 83.137)
+                                    new Pose(110.158, 83.339),
+                                    new Pose(124.192, 82.897)
                             )
                     )
                     .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
@@ -222,7 +230,7 @@ public class RedAutoPedroPath extends OpMode {
             Path5 = follower.pathBuilder()
                     .addPath(
                             new BezierLine(
-                                    new Pose(128.272, 83.137),
+                                    new Pose(124.192, 82.897),
                                     new Pose(100.924, 100.456)
                             )
                     )
@@ -273,6 +281,7 @@ public class RedAutoPedroPath extends OpMode {
                     .build();
         }
     }
+
 
     public void autonomousPathUpdate() {
         // Add your state machine Here
@@ -395,54 +404,60 @@ public class RedAutoPedroPath extends OpMode {
 
     public void setShootingState(ShootingState pState) {
         shootingState = pState;
+        Flywheel.setPower(Shooting_Power);
         actionTimer.resetTimer();
     }
 
-    public void shootPPG(double Shooting_Power, double transfer_power) {
+    public void shootPPG() {
         panelsTelemetry.addData("Auto Pattern:" ,"Running PPG Auto");
-
-        if(shooting) {Flywheel.setPower(Shooting_Power);}
 
         if(!shooting) {return;}
 
         switch (shootingState) {
+            case IDLE:
+                break;
             case POSITION_1:
-                roulette.setPosition(1.0 / 280.0);
+                roulette.setPosition(10.0 / 280.0);
                 setShootingState(ShootingState.FIRE_1);
                 break;
             case FIRE_1:
-                if(actionTimer.getElapsedTime() > 400) {
+                if(actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(transfer_power);
                     setShootingState(ShootingState.POSITION_2);
                 }
                 break;
             case POSITION_2:
-                if (actionTimer.getElapsedTime() > 550) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(0);
-                    roulette.setPosition(129.0 / 280.0);
+                    roulette.setPosition(140.0 / 280.0);
                     setShootingState(ShootingState.FIRE_2);
                 }
                 break;
             case FIRE_2:
-                if (actionTimer.getElapsedTime() > 700) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(transfer_power);
                     setShootingState(ShootingState.POSITION_3);
                 }
                 break;
             case POSITION_3:
-                if (actionTimer.getElapsedTime() > 550) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(0);
-                    roulette.setPosition(261.0 / 280.0);
+                    roulette.setPosition(266.0 / 280.0);
                     setShootingState(ShootingState.FIRE_3);
                 }
                 break;
 
             case FIRE_3:
-                if (actionTimer.getElapsedTime() > 700) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(transfer_power);
+                }
+                if(actionTimer.getElapsedTime() > 1500) {
                     setShootingState(ShootingState.DONE);
                     shooting = false;
                 }
+                break;
+
+            case DONE:
                 break;
         }
 
@@ -452,43 +467,42 @@ public class RedAutoPedroPath extends OpMode {
     public void shootPGP() {
 
         panelsTelemetry.addData("Auto Pattern:" ,"Running PGP Auto");
-        if(shooting) {Flywheel.setPower(Shooting_Power);}
         if(!shooting) {return;}
 
         switch (shootingState) {
             case POSITION_1:
-                roulette.setPosition(1.0 / 280.0);
+                roulette.setPosition(10.0 / 280.0);
                 setShootingState(ShootingState.FIRE_1);
                 break;
             case FIRE_1:
-                if(actionTimer.getElapsedTime() > 400) {
+                if(actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(transfer_power);
                     setShootingState(ShootingState.POSITION_2);
                 }
                 break;
             case POSITION_2:
-                if (actionTimer.getElapsedTime() > 550) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(0);
-                    roulette.setPosition(129.0 / 280.0);
+                    roulette.setPosition(140.0 / 280.0);
                     setShootingState(ShootingState.FIRE_2);
                 }
                 break;
             case FIRE_2:
-                if (actionTimer.getElapsedTime() > 700) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(transfer_power);
                     setShootingState(ShootingState.POSITION_3);
                 }
                 break;
             case POSITION_3:
-                if (actionTimer.getElapsedTime() > 550) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(0);
-                    roulette.setPosition(261.0 / 280.0);
+                    roulette.setPosition(266.0 / 280.0);
                     setShootingState(ShootingState.FIRE_3);
                 }
                 break;
 
             case FIRE_3:
-                if (actionTimer.getElapsedTime() > 700) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(transfer_power);
                     setShootingState(ShootingState.DONE);
                     shooting = false;
@@ -501,43 +515,42 @@ public class RedAutoPedroPath extends OpMode {
     public void shootGPP() {
 
         panelsTelemetry.addData("Auto Pattern:" ,"Running GPP Auto");
-        if(shooting) {Flywheel.setPower(Shooting_Power);}
         if(!shooting) {return;}
 
         switch (shootingState) {
             case POSITION_1:
-                roulette.setPosition(1.0 / 280.0);
+                roulette.setPosition(10.0 / 280.0);
                 setShootingState(ShootingState.FIRE_1);
                 break;
             case FIRE_1:
-                if(actionTimer.getElapsedTime() > 400) {
+                if(actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(transfer_power);
                     setShootingState(ShootingState.POSITION_2);
                 }
                 break;
             case POSITION_2:
-                if (actionTimer.getElapsedTime() > 550) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(0);
-                    roulette.setPosition(129.0 / 280.0);
+                    roulette.setPosition(140.0 / 280.0);
                     setShootingState(ShootingState.FIRE_2);
                 }
                 break;
             case FIRE_2:
-                if (actionTimer.getElapsedTime() > 700) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(transfer_power);
                     setShootingState(ShootingState.POSITION_3);
                 }
                 break;
             case POSITION_3:
-                if (actionTimer.getElapsedTime() > 550) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(0);
-                    roulette.setPosition(261.0 / 280.0);
+                    roulette.setPosition(266.0 / 280.0);
                     setShootingState(ShootingState.FIRE_3);
                 }
                 break;
 
             case FIRE_3:
-                if (actionTimer.getElapsedTime() > 700) {
+                if (actionTimer.getElapsedTime() > 1000) {
                     BallTransfer.setPower(transfer_power);
                     setShootingState(ShootingState.DONE);
                     shooting = false;
@@ -583,6 +596,7 @@ public class RedAutoPedroPath extends OpMode {
 
         panelsTelemetry.update();
     }
+
 }
 
 

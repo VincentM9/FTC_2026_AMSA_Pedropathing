@@ -12,8 +12,8 @@ public class FlyWheelTuner extends OpMode {
 
     public DcMotorEx flywheel;
 
-    public double highVelocity = 1500;
-    public double lowVelocity = 900;
+    public double highVelocity = 1900;
+    public double lowVelocity = 1200;
 
     public double curTargetVelocity = highVelocity;
 
@@ -28,7 +28,7 @@ public class FlyWheelTuner extends OpMode {
     public void init() {
         flywheel = hardwareMap.get(DcMotorEx.class, "spinny");
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+        flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
 
         PIDFCoefficients pidfCoefficients = new PIDFCoefficients(P, 0, 0, F);
         flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfCoefficients);
@@ -54,7 +54,7 @@ public class FlyWheelTuner extends OpMode {
             F += stepSizes[stepIndex];
         }
         if (gamepad1.dpadUpWasPressed()) {
-            P -= stepSizes[stepIndex];
+            P += stepSizes[stepIndex];
         }
         if (gamepad1.dpadDownWasPressed()) {
             P -= stepSizes[stepIndex];
@@ -65,6 +65,8 @@ public class FlyWheelTuner extends OpMode {
         flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfCoefficients);
 
         // set velocity
+
+        flywheel.setVelocity(curTargetVelocity);
         double curVelocity = flywheel.getVelocity();
         double error = curTargetVelocity - curVelocity;
 
