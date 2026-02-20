@@ -6,6 +6,10 @@ import android.util.Size;
 import com.bylazar.telemetry.TelemetryManager;
 import com.bylazar.telemetry.PanelsTelemetry;
 
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.BezierLine;
+import com.pedropathing.geometry.Pose;
+import com.pedropathing.paths.Path;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -21,6 +25,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
+import org.firstinspires.ftc.teamcode.helper.Drawing;
+import org.firstinspires.ftc.teamcode.helper.PoseStorage;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
@@ -49,6 +56,7 @@ public class TylerSmells extends OpMode {
             0, -90, 0, 0);
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
+    private Follower follower;
 
     private boolean prevRightBumper = false;
     private boolean shootingSequenceActive = false;
@@ -92,6 +100,20 @@ public class TylerSmells extends OpMode {
         rf.setDirection(DcMotor.Direction.FORWARD);
         rr.setDirection(DcMotor.Direction.FORWARD);
 
+        Pose pose = correctPoseFromAprilTag(follower);
+
+        follower = Constants.createFollower(hardwareMap);
+        if (PoseStorage.currentPose != null) {
+            follower.setStartingPose(PoseStorage.currentPose);
+        }
+        else if(pose != null){
+            follower.setStartingPose(pose);
+        }
+        else {
+            follower.setStartingPose(new Pose(72, 72, Math.toRadians(0) ));
+        }
+
+        Drawing.init();
         panelsTelemetry.addData("Status", "Initialized");
         panelsTelemetry.update(telemetry);
 
@@ -218,7 +240,7 @@ public class TylerSmells extends OpMode {
         } //End of Reverse Artifact transfer code
 
 
-
+        Drawing.drawDebug(follower);
         panelsTelemetry.addData("Status", "Run Time: " + runtime.toString());
         panelsTelemetry.update();
         /** End of Six Seven Code  **/
@@ -387,4 +409,49 @@ public class TylerSmells extends OpMode {
         telemetry.addLine("PRY = Pitch, Roll & Yaw (XYZ Rotation)");
 
     }   // end method telemetryAprilTag()
+    public Pose correctPoseFromAprilTag(Follower follower) {
+        List<AprilTagDetection> detections = aprilTag.getDetections();
+
+        for (AprilTagDetection detection : detections) {
+            // Only use tags with known positions (metadata != null)
+            // and skip Obelisk tags which don't have reliable field positions
+            if (detection.metadata != null && !detection.metadata.name.contains("Obelisk")
+                    && detection.robotPose != null) {
+
+                // detection.robotPose gives robot position in INCHES relative to field origin
+                double x = detection.robotPose.getPosition().x;
+                double y = detection.robotPose.getPosition().y;
+                double yaw = detection.robotPose.getOrientation().getYaw(AngleUnit.DEGREES);
+
+                // Convert to Pedro's coordinate system and update follower
+                return new Pose(x, y, Math.toRadians(yaw)); // Only need one good detection
+            }
+        }
+        return null;
+    }
+    public void lineUP(Follower follower) {
+        List<AprilTagDetection> detections = aprilTag.getDetections();
+        Pose currentPose = follower.getPose();
+        double curHeading = currentPose.getHeading();
+
+
+        for (AprilTagDetection detection : detections) {
+            // Only use tags with known positions (metadata != null)
+            // and skip Obelisk tags which don't have reliable field positions
+            if (detection.metadata != null && !detection.metadata.name.contains("Obelisk")
+                    && detection.robotPose != null) {
+
+                // detection.robotPose gives robot position in INCHES relative to field origin
+                double yaw = detection.robotPose.getOrientation().getYaw(AngleUnit.DEGREES);
+
+                follower.turnTo(Math.toRadians(yaw));
+                break; // Only need to correct once
+            }
+        }
+
+
+
+
+    }
+
 }
