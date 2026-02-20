@@ -3,16 +3,13 @@ package org.firstinspires.ftc.teamcode.teleOP;
 //import com.bylazar.gamepad.*;
 import android.util.Size;
 
-import com.bylazar.gamepad.GamepadManager;
-import com.bylazar.gamepad.GamepadPluginConfig;
-import com.bylazar.gamepad.PanelsGamepad;
 import com.bylazar.telemetry.TelemetryManager;
 import com.bylazar.telemetry.PanelsTelemetry;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.Gamepad;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -33,8 +30,6 @@ import java.util.List;
 
 @TeleOp(name = "TylerSmells", group= "OpMode")
 public class TylerSmells extends OpMode {
-    private final GamepadManager g1Manager = PanelsGamepad.INSTANCE.getFirstManager();
-    private final GamepadManager g2Manager = PanelsGamepad.INSTANCE.getSecondManager();
 
     private Timer actionTimer, opmodeTimer;
     private TelemetryManager panelsTelemetry;
@@ -43,7 +38,7 @@ public class TylerSmells extends OpMode {
     private DcMotor lr;
     private DcMotor rf;
     private DcMotor rr;
-    private DcMotor spinny;
+    private DcMotorEx spinny;
     private Servo roulette;
     private DcMotor BallTransfer;
     private DcMotor RubberBandIntake;
@@ -58,30 +53,39 @@ public class TylerSmells extends OpMode {
     private boolean prevRightBumper = false;
     private boolean shootingSequenceActive = false;
     private int shootingStep = 0;
-    private boolean transferBurstActive = false;
-    private boolean transferReverseActive = false;
-    private boolean spinReverseActive = false;
+    private boolean transferActive = false;
+    private boolean topintakeActive = false;
+    private boolean reversetransferActive = false;
+    private Timer transferTimer, topintakeTimer, reversetransferTimer;
 
-
+    private float y;
+    private double x;
+    private float rx;
     @Override
     /** This method is called once at the init of the OpMode. **/
     public void init(){
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
-        float y;
-        double x;
-        float rx;
-
         actionTimer = new Timer();
+        transferTimer = new Timer();
+        topintakeTimer = new Timer();
+        reversetransferTimer = new Timer();
+        opmodeTimer = new Timer();
 
         lf = hardwareMap.get(DcMotor.class, "lf");
         lr = hardwareMap.get(DcMotor.class, "lr");
         rf = hardwareMap.get(DcMotor.class, "rf");
         rr = hardwareMap.get(DcMotor.class, "rr");
-        spinny = hardwareMap.get(DcMotor.class, "spinny");
+        spinny = hardwareMap.get(DcMotorEx.class, "spinny");
         roulette = hardwareMap.get(Servo.class, "roulette");
         BallTransfer = hardwareMap.get(DcMotor.class, "Ball Transfer");
         RubberBandIntake = hardwareMap.get(DcMotor.class, "Rubber Band Intake");
+
+        spinny.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        spinny.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        //PIDFCoefficients pidfCoefficients = new PIDFCoefficients(0, 0, 0, 0);
+        //spinny.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfCoefficients);
 
         lf.setDirection(DcMotor.Direction.REVERSE);
         lr.setDirection(DcMotor.Direction.REVERSE);
@@ -103,16 +107,13 @@ public class TylerSmells extends OpMode {
     public void start(){
         runtime.reset();
         actionTimer.resetTimer();
+        opmodeTimer.resetTimer();
+
     }
 
     @Override
     public void loop(){
 
-        /** Panels Gamepad Plugin **/
-        Gamepad g1 = g1Manager.asCombinedFTCGamepad(gamepad1);
-        Gamepad g2 = g2Manager.asCombinedFTCGamepad(gamepad2);
-        gamePadTelemetry(g1, g2);
-        /** End of Panels Gamepad Plugin **/
 
         /** Driving Code **/
         double max;
@@ -142,77 +143,81 @@ public class TylerSmells extends OpMode {
         lr.setPower(backLeftPower);
         rr.setPower(backRightPower);
 
-        //telemetry.addData("Front left/Right", "%4.2f, %4.2f", frontLeftPower, frontRightPower);
-        //telemetry.addData("Back  left/Right", "%4.2f, %4.2f", backLeftPower, backRightPower);
+        telemetry.addData("Front left/Right", "%4.2f, %4.2f", frontLeftPower, frontRightPower);
+        telemetry.addData("Back  left/Right", "%4.2f, %4.2f", backLeftPower, backRightPower);
 
         /** End Of Driving Code **/
 
         /** Six Seven Code  **/
-        if (gamepad2.rightBumperWasPressed()) { //If right bumper is pressed
-            spinny.setPower(0.6); //Set spinny power to 0.6
-        }
-        if (gamepad2.rightBumperWasReleased()) { //If right bumper is released
-            spinny.setPower(0); //Set spinny power to 0
-        }
-
-        if (gamepad2.left_bumper) {
-            spinny.setPower(-0.35);
-            //sleep(500);
+        if (gamepad2.rightBumperWasPressed()) {
+            spinny.setPower(0.6);
+        } //Set Flywheel power to 0.6 if right bumper was pressed (Ball launcher)
+        if (gamepad2.rightBumperWasReleased()) {
             spinny.setPower(0);
-        }
+        } //Set Flywheel power to 0 if right bumper was released
+
+        if (gamepad2.left_bumper && !topintakeActive) {
+            spinny.setPower(-0.35);
+            topintakeTimer.resetTimer();
+            topintakeActive = true;
+        } //Top intake code (from the Flywheel)
+        if (topintakeActive && topintakeTimer.getElapsedTime() > 500) {
+            spinny.setPower(0);
+            topintakeActive = false;
+        } // End of top intake code (from the Flywheel)
+
         if (spinny.getPower() <= -0.15) {
             gamepad2.rumble(1, 0, 50);
         }
-        if (spinny.getPower() >= 0.5) {
+        if (spinny.getPower() >= 0.60) {
             gamepad2.rumble(0, 1, 50);
         }
 
-        // End Ball Launcher (Motor)
-        // Start Artifact Spinner (Servo)
-        if (gamepad2.a) {
-            roulette.setPosition(1.0 / 280.0);
-        }
-        if (gamepad2.b) {
-            roulette.setPosition(129.0 / 280.0);
-        }
-        if (gamepad2.x) {
-            roulette.setPosition(261.0 / 280.0);
-        }
+
+        if(!shootingSequenceActive) {
+            if (gamepad2.a) {
+                roulette.setPosition(1.0 / 280.0);
+            } // Roulette position 1 ~ 0 Degrees
+            if (gamepad2.b) {
+                roulette.setPosition(129.0 / 280.0);
+            } // Roulette position 2 ~ 120 Degrees
+            if (gamepad2.x) {
+                roulette.setPosition(261.0 / 280.0);
+            } // Roulette position 3 ~ 240 Degrees
+        }// a/b/x manual roulette positions
 
         if (gamepad2.y && !shootingSequenceActive) {
             shootingSequenceActive = true;
             shootingStep = 0;
             actionTimer.resetTimer();
-        }
+        } //Start of 3 ball shooting sequence
         if (shootingSequenceActive) {
             shootingSequence();
-        }
+        } // End of 3 ball shooting sequence
 
-        // End Artifact Spinner (Servo)
 
-        // Start Artifact Transfer (Motor)
-        if (gamepad2.dpad_up) {
+        if (gamepad2.dpad_up && !transferActive) {
             BallTransfer.setPower(-0.65);
-            //sleep(670);
+            transferTimer.resetTimer();
+            transferActive = true; //Artifact transfer code
+        } //Artifact transfer code
+        if (transferActive && transferTimer.getElapsedTime() > 670){
             BallTransfer.setPower(0);
-        }
-        if (gamepad2.dpad_down) {
+            transferActive = false;
+        } //End of artifact transfer code
+
+        if (gamepad2.dpad_down && !reversetransferActive) {
             BallTransfer.setPower(0.4);
             RubberBandIntake.setPower(0);
-            //sleep(500);
+            reversetransferTimer.resetTimer();
+            reversetransferActive = true;
+        } //Reverse Artifact transfer code
+        if (reversetransferActive && reversetransferTimer.getElapsedTime() > 500){
             BallTransfer.setPower(0);
-        }
-        // End Artifact Transfer (Motor)
+            reversetransferActive = false;
+        } //End of Reverse Artifact transfer code
 
-        // Start Artifact Intake (Motor)
-        if (gamepad2.dpad_right) {
-            gamepad2.rumble(1, 0, 2);
-            RubberBandIntake.setPower(-1);
-        }
-        if (gamepad2.dpad_left) {
-            RubberBandIntake.setPower(1);
-        }
-        // End Artifact Intake (Motor)
+
 
         panelsTelemetry.addData("Status", "Run Time: " + runtime.toString());
         panelsTelemetry.update();
@@ -229,42 +234,8 @@ public class TylerSmells extends OpMode {
         panelsTelemetry.update(telemetry);
     }
 
-    public void gamePadTelemetry(Gamepad g1, Gamepad g2){
-        panelsTelemetry.debug("==== Buttons ====");
-        panelsTelemetry.debug("A: " + g1.a);
-        panelsTelemetry.debug("B: " + g1.b);
-        panelsTelemetry.debug("X: " + g1.x);
-        panelsTelemetry.debug("Y: " + g1.y);
-
-        panelsTelemetry.debug("DPAD Up: " + g1.dpad_up);
-        panelsTelemetry.debug("DPAD Down: " + g1.dpad_down);
-        panelsTelemetry.debug("DPAD Left: " + g1.dpad_left);
-        panelsTelemetry.debug("DPAD Right: " + g1.dpad_right);
-
-        panelsTelemetry.debug("Left Bumper: " + g1.left_bumper);
-        panelsTelemetry.debug("Right Bumper: " + g1.right_bumper);
-
-        panelsTelemetry.debug("Left Trigger: " + g1.left_trigger);
-        panelsTelemetry.debug("Right Trigger: " + g1.right_trigger);
-
-        panelsTelemetry.debug("Start / Options: " + g1.options);
-        panelsTelemetry.debug("Back / Share: " + g1.back);
-        panelsTelemetry.debug("Guide / PS: " + g1.guide);
-        panelsTelemetry.debug("Touchpad: " + g1.touchpad);
-
-        panelsTelemetry.debug("Left Stick Button: " + g1.left_stick_button);
-        panelsTelemetry.debug("Right Stick Button: " + g1.right_stick_button);
-
-        panelsTelemetry.debug("==== Sticks ====");
-        panelsTelemetry.debug("Left Stick X: " + g1.left_stick_x);
-        panelsTelemetry.debug("Left Stick Y: " + g1.left_stick_y);
-        panelsTelemetry.debug("Right Stick X: " + g1.right_stick_x);
-        panelsTelemetry.debug("Right Stick Y: " + g1.right_stick_y);
-
-    }
     public void shootingSequence() {
         switch (shootingStep) {
-
             case 0:
                 roulette.setPosition(1.0 / 280.0);
                 actionTimer.resetTimer();
@@ -320,7 +291,7 @@ public class TylerSmells extends OpMode {
                 }
                 break;
         }
-    }
+    } //3 Ball shooting sequence method
 
     private void initAprilTag() {
 
