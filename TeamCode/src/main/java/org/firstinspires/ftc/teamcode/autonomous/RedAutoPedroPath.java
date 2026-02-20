@@ -22,6 +22,8 @@ import com.pedropathing.util.Timer;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
@@ -40,10 +42,9 @@ public class RedAutoPedroPath extends OpMode {
     private Timer pathTimer, actionTimer, opmodeTimer;
     private Servo roulette; //Servos
     private DcMotor RubberBandIntake, BallTransfer; //DcMotors for Intake/Outtake
-    private DcMotorEx Flywheel;
+    private DcMotorEx flywheel;
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
-
 
     private int pathState; // Current autonomous path state (state machine)
     public enum ShootingState {
@@ -61,9 +62,9 @@ public class RedAutoPedroPath extends OpMode {
     private boolean shooting = false;
     private int tag;
 
-    //This shoot be velocity
+    //This should be velocity
     private final double Shooting_Power = 0.575;
-    private final double transfer_power = 0.7;
+    private final double transfer_power = -0.7;
     private final double intake_power = 1;
     private int lastSeenTag = -1;
 
@@ -80,16 +81,19 @@ public class RedAutoPedroPath extends OpMode {
 
         roulette = hardwareMap.get(Servo.class, "roulette");
 
-        Flywheel = hardwareMap.get(DcMotorEx.class, "spinny");
+        flywheel = hardwareMap.get(DcMotorEx.class, "spinny");
         BallTransfer = hardwareMap.get(DcMotor.class, "Ball Transfer");
         RubberBandIntake = hardwareMap.get(DcMotor.class, "Rubber Band Intake");
 
-        Flywheel.setDirection(DcMotor.Direction.FORWARD);
+        flywheel.setDirection(DcMotor.Direction.FORWARD);
         BallTransfer.setDirection(DcMotor.Direction.FORWARD);
         RubberBandIntake.setDirection(DcMotor.Direction.FORWARD);
 
-        Flywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        flywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
+        //PIDFCoefficients pidfCoefficients = new PIDFCoefficients(0, 0, 0, 0);
+        //flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfCoefficients);
 
         follower = Constants.createFollower(hardwareMap);
         paths = new Paths(follower); //Build paths
@@ -113,14 +117,7 @@ public class RedAutoPedroPath extends OpMode {
             }
 
             telemetry.addData("Last Seen Tag", lastSeenTag);
-            if(lastSeenTag == 21){
-                telemetry.addData("Auto Choice", "GPP");
-            } else if (lastSeenTag == 22) {
-                telemetry.addData("Auto Choice", "PGP");
-            } else if (lastSeenTag ==23) {
-                telemetry.addData("Auto Choice", "PPG");
-            }
-
+            telemetry.addData("Auto Choice", "too lazy to write method");
         } else {
             telemetry.addLine("No tag visible");
             telemetry.addData("Last Seen Tag", lastSeenTag);
@@ -151,14 +148,14 @@ public class RedAutoPedroPath extends OpMode {
         autonomousPathUpdate();
 
         if (shooting) {
-            //if (tag == 22) shootPPG();
-            //else if (tag == 21) shootPGP();
-            //else if (tag == 23) shootGPP();
-            shootPPG();
+            if (tag == 22) shootPPG();
+            else if (tag == 21) shootPGP();
+            else if (tag == 23) shootGPP();
+            //shootPPG();
         }
         else {
             BallTransfer.setPower(0);
-            Flywheel.setPower(0);
+            flywheel.setPower(0);
         }
 
         panelsTelemetry.addData("path state", pathState);
@@ -282,7 +279,6 @@ public class RedAutoPedroPath extends OpMode {
         }
     }
 
-
     public void autonomousPathUpdate() {
         // Add your state machine Here
         // Access paths with paths.pathName
@@ -305,10 +301,12 @@ public class RedAutoPedroPath extends OpMode {
                     follower.followPath(paths.Path2);
                     setPathState(2);
                     shootingState = ShootingState.IDLE;  // reset for next use
+
+                    //RubberBandIntake.setPower(intake_power);
                 }
 
                 break;
-            case 2:
+            case 2: //Gaybo tdawg put path 2 here for some reason
                 if(!follower.isBusy()) {
                     panelsTelemetry.addLine("Path 2 Done");
                     panelsTelemetry.update();
@@ -317,24 +315,30 @@ public class RedAutoPedroPath extends OpMode {
                 }
 
                 break;
-            case 3:
+            case 3: //This should intake 2
                 if(!follower.isBusy()) {
                     panelsTelemetry.addLine("Path 3 Done");
                     panelsTelemetry.update();
                     follower.followPath(paths.Path4);
                     setPathState(4);
+
+                    //roulette.setPosition(200.0 / 280.0);
+                    //wait like 500 ms
                 }
                 break;
-            case 4:
+            case 4: //This should intake the last one
                 if(!follower.isBusy()) {
                     panelsTelemetry.addLine("Path 4 Done");
                     panelsTelemetry.update();
                     follower.followPath(paths.Path5);
                     setPathState(5);
+
+                    //RubberBandIntake.setPower(0);
+                    //roulette.setPosition(1.0 / 280.0);
                 }
 
                 break;
-            case 5:
+            case 5: //Should shoot 3 balls
                 if (!follower.isBusy() && shootingState == ShootingState.IDLE) {
                     panelsTelemetry.addLine("Path 5 Done");
                     panelsTelemetry.update();
@@ -346,27 +350,38 @@ public class RedAutoPedroPath extends OpMode {
                     follower.followPath(paths.Path6);
                     setPathState(6);
                     shootingState = ShootingState.IDLE;  // reset for next use
+
+                    //RubberBandIntake.setPower(intake_power);
+                    //roulette.setPosition(200.0 / 280.0);
+                    //wait like 500ms
                 }
 
                 break;
-            case 6:
+            case 6: //This should intake 1
                 if(!follower.isBusy()) {
                     panelsTelemetry.addLine("Path 6 Done");
                     panelsTelemetry.update();
                     follower.followPath(paths.Path7);
                     setPathState(7);
+
+                    //roulette.setPosition(1.0 / 280.0);
+                    //wait like 500ms
                 }
 
                 break;
-            case 7:
+            case 7: // This should intake the last 2
                 if(!follower.isBusy()) {
                     panelsTelemetry.addLine("Path 7 Done");
                     panelsTelemetry.update();
                     follower.followPath(paths.Path8);
                     setPathState(8);
+
+                    //RubberBandIntake.setPower(0);
+                    //roulette.setPosition(1.0 / 280.0);
+                    //wait like 500ms
                 }
                 break;
-            case 8:
+            case 8: //Should shoot 3 balls
                 if (!follower.isBusy() && shootingState == ShootingState.IDLE) {
                     panelsTelemetry.addLine("Path 8 Done");
                     panelsTelemetry.update();
@@ -378,9 +393,11 @@ public class RedAutoPedroPath extends OpMode {
                     follower.followPath(paths.Path9);
                     setPathState(9);
                     shootingState = ShootingState.IDLE;  // reset for next use
+
+                    //roulette.setPosition(1.0 / 280.0);
                 }
                 break;
-            case 9:
+            case 9: //Final position to move onto teleop
                 if(!follower.isBusy()) {
                     panelsTelemetry.addLine("Path 9 Done");
                     panelsTelemetry.update();
@@ -404,7 +421,7 @@ public class RedAutoPedroPath extends OpMode {
 
     public void setShootingState(ShootingState pState) {
         shootingState = pState;
-        Flywheel.setPower(Shooting_Power);
+        flywheel.setPower(Shooting_Power);
         actionTimer.resetTimer();
     }
 
@@ -414,8 +431,6 @@ public class RedAutoPedroPath extends OpMode {
         if(!shooting) {return;}
 
         switch (shootingState) {
-            case IDLE:
-                break;
             case POSITION_1:
                 roulette.setPosition(10.0 / 280.0);
                 setShootingState(ShootingState.FIRE_1);

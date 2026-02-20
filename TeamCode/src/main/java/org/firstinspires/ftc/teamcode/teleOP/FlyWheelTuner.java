@@ -65,8 +65,8 @@ public class FlyWheelTuner extends OpMode {
         flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfCoefficients);
 
         // set velocity
-
         flywheel.setVelocity(curTargetVelocity);
+
         double curVelocity = flywheel.getVelocity();
         double error = curTargetVelocity - curVelocity;
 
