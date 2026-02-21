@@ -10,6 +10,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.helper.AutoMethods;
@@ -35,7 +36,7 @@ public class RedAutoPedroPath extends OpMode {
 
     //Hardware constants
     private static final double SHOOTING_POWER  =  0.575;
-    private static final double TRANSFER_POWER = -0.7;
+    private static final double TRANSFER_POWER = 0.7;
     private static final double INTAKE_POWER =  1.0;
 
     //Core objects
@@ -59,8 +60,6 @@ public class RedAutoPedroPath extends OpMode {
     private GoBildaPinpointDriver goBildaPinpointDriver;
     @Override
     public void init() {
-        goBildaPinpointDriver = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
-        goBildaPinpointDriver.recalibrateIMU();
 
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
         pathTimer   = new Timer();
@@ -82,8 +81,8 @@ public class RedAutoPedroPath extends OpMode {
         RubberBandIntake.setDirection(DcMotor.Direction.FORWARD);
         flywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        //PIDFCoefficients pidfCoefficients = new PIDFCoefficients(15, 0, 0, 50);
-        //flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfCoefficients);
+        PIDFCoefficients pidfCoefficients = new PIDFCoefficients(14, 0, 0, 70);
+        flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfCoefficients);
 
         // Pedro Pathing
         follower = Constants.createFollower(hardwareMap);
@@ -151,7 +150,7 @@ public class RedAutoPedroPath extends OpMode {
             if      (tag == 22) autoMethods.shootPPG();
             else if (tag == 21) autoMethods.shootPGP();
             else if (tag == 23) autoMethods.shootGPP();
-            else autoMethods.shootPPG();
+            else autoMethods.shootGPP();
         }
 
         panelsTelemetry.addData("Path State", pathState);
@@ -178,6 +177,7 @@ public class RedAutoPedroPath extends OpMode {
     public void autonomousPathUpdate() {
         flywheel.setVelocity(flywheelVelo);
         RubberBandIntake.setPower(INTAKE_POWER);
+
         switch (pathState) {
             case 0:
                 follower.followPath(paths.Path1);

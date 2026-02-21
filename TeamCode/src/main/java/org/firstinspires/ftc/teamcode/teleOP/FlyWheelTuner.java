@@ -12,8 +12,8 @@ public class FlyWheelTuner extends OpMode {
 
     public DcMotorEx flywheel;
 
-    public double highVelocity = 1900;
-    public double lowVelocity = 1200;
+    public double highVelocity = 900 ;
+    public double lowVelocity = 0;
 
     public double curTargetVelocity = highVelocity;
 
@@ -58,6 +58,14 @@ public class FlyWheelTuner extends OpMode {
         }
         if (gamepad1.dpadDownWasPressed()) {
             P -= stepSizes[stepIndex];
+        }
+        if (gamepad1.leftBumperWasPressed()) {
+            curTargetVelocity -= 10;
+            highVelocity -= 10;
+        }
+        if (gamepad1.rightBumperWasPressed()) {
+            curTargetVelocity += 10;
+            highVelocity += 10;
         }
 
         // set new PIDF coefficients

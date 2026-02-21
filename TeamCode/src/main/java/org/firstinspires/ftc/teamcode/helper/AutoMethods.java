@@ -149,29 +149,6 @@ public class AutoMethods {
         }
     }
 
-    public void telemetryAprilTag() {
-        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
-        panelsTelemetry.addData("# AprilTags Detected", currentDetections.size());
-
-        for (AprilTagDetection detection : currentDetections) {
-            if (detection.metadata != null) {
-                panelsTelemetry.addLine(String.format("\n==== (ID %d) %s", detection.id, detection.metadata.name));
-                panelsTelemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)", detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z));
-                panelsTelemetry.addLine(String.format("PRY %6.1f %6.1f %6.1f  (deg)", detection.ftcPose.pitch, detection.ftcPose.roll, detection.ftcPose.yaw));
-                panelsTelemetry.addLine(String.format("RBE %6.1f %6.1f %6.1f  (inch, deg, deg)", detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation));
-            } else {
-                panelsTelemetry.addLine(String.format("\n==== (ID %d) Unknown", detection.id));
-                panelsTelemetry.addLine(String.format("Center %6.0f %6.0f   (pixels)", detection.center.x, detection.center.y));
-            }
-        }
-
-        panelsTelemetry.addLine("\nkey:\nXYZ = X (Right), Y (Forward), Z (Up) dist.");
-        panelsTelemetry.addLine("PRY = Pitch, Roll & Yaw (XYZ Rotation)");
-        panelsTelemetry.addLine("RBE = Range, Bearing & Elevation");
-        panelsTelemetry.update();
-    }
-
-
     // Private helpers
     /**
      * Generic 3-ball shooting sequence driven by roulette positions.
@@ -179,9 +156,9 @@ public class AutoMethods {
      * servo positions differ, making it easy to tune each pattern independently.
      */
     //Timing constants (ms)
-    private static final long ROULETTE_MS = 500; // wait after positioning roulette before firing
-    private static final long TRANSFER_MS = 500; // how long to run BallTransfer per ball
-    private static  final long FIRE_MS = 100;
+    private static final long ROULETTE_MS = 1500; // wait after positioning roulette before firing
+    private static final long TRANSFER_MS = 800; // how long to run BallTransfer per ball
+    private static final long FIRE_MS = 100;
 
     private void runShootSequence(double pos1, double pos2, double pos3) {
         switch (shootingState) {
@@ -192,10 +169,10 @@ public class AutoMethods {
 
             case FIRE_1:
                 //ADJUST BASED ON HOW MUCH OVERLAP IS ALLOWED BETWEEN MOVING AND THE ROULETTE SPINNING
-                if (actionTimer.getElapsedTime() > (ROULETTE_MS - 67)) {
+                if (actionTimer.getElapsedTime() > (ROULETTE_MS)) {
                     BallTransfer.setPower(transfer_power);
                 }
-                if (actionTimer.getElapsedTime() > (ROULETTE_MS - 67 + TRANSFER_MS) ) {
+                if (actionTimer.getElapsedTime() > (ROULETTE_MS + TRANSFER_MS) ) {
                     BallTransfer.setPower(0);
                     setShootingState(RedAutoPedroPath.ShootingState.POSITION_2);
                 }

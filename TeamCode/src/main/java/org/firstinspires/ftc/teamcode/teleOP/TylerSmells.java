@@ -14,6 +14,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -58,9 +59,7 @@ public class TylerSmells extends OpMode {
     private VisionPortal visionPortal;
     private Follower follower;
 
-    private boolean prevRightBumper = false;
     private boolean shootingSequenceActive = false;
-    private int shootingStep = 0;
     private boolean transferActive = false;
     private boolean topintakeActive = false;
     private boolean reversetransferActive = false;
@@ -73,7 +72,7 @@ public class TylerSmells extends OpMode {
     /** This method is called once at the init of the OpMode. **/
     public void init(){
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
-
+        initAprilTag();
         actionTimer = new Timer();
         transferTimer = new Timer();
         topintakeTimer = new Timer();
@@ -92,8 +91,8 @@ public class TylerSmells extends OpMode {
         spinny.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         spinny.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        //PIDFCoefficients pidfCoefficients = new PIDFCoefficients(0, 0, 0, 0);
-        //spinny.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfCoefficients);
+        PIDFCoefficients pidfCoefficients = new PIDFCoefficients(72, 0, 0, 13);
+        spinny.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfCoefficients);
 
         lf.setDirection(DcMotor.Direction.REVERSE);
         lr.setDirection(DcMotor.Direction.REVERSE);
@@ -171,55 +170,21 @@ public class TylerSmells extends OpMode {
         /** End Of Driving Code **/
 
         /** Six Seven Code  **/
-        if (gamepad2.rightBumperWasPressed()) {
-            spinny.setPower(0.6);
-        } //Set Flywheel power to 0.6 if right bumper was pressed (Ball launcher)
-        if (gamepad2.rightBumperWasReleased()) {
-            spinny.setPower(0);
-        } //Set Flywheel power to 0 if right bumper was released
+        if (gamepad2.rightBumperWasPressed()) {spinny.setVelocity(1200);} //Set Flywheel velocity to 0.6 if right bumper was pressed
+        if (gamepad2.leftBumperWasPressed()) {spinny.setVelocity(0);} //Set Flywheel velocity to 0 if left bumper was pressed
+        if(spinny.getVelocity() > 1150 && spinny.getVelocity() < 1250){gamepad2.rumble(0, 1, 50);}
 
-        if (gamepad2.left_bumper && !topintakeActive) {
-            spinny.setPower(-0.35);
-            topintakeTimer.resetTimer();
-            topintakeActive = true;
-        } //Top intake code (from the Flywheel)
-        if (topintakeActive && topintakeTimer.getElapsedTime() > 500) {
-            spinny.setPower(0);
-            topintakeActive = false;
-        } // End of top intake code (from the Flywheel)
 
-        if (spinny.getPower() <= -0.15) {
-            gamepad2.rumble(1, 0, 50);
-        }
-        if (spinny.getPower() >= 0.60) {
-            gamepad2.rumble(0, 1, 50);
-        }
-
+        if (gamepad2.yWasPressed()) { spinny.setVelocity(-167);} // Set Flywheel velocity -167 (Top intake)
 
         if(!shootingSequenceActive) {
-            if (gamepad2.a) {
-                roulette.setPosition(1.0 / 280.0);
-            } // Roulette position 1 ~ 0 Degrees
-            if (gamepad2.b) {
-                roulette.setPosition(129.0 / 280.0);
-            } // Roulette position 2 ~ 120 Degrees
-            if (gamepad2.x) {
-                roulette.setPosition(261.0 / 280.0);
-            } // Roulette position 3 ~ 240 Degrees
+            if (gamepad2.a) {roulette.setPosition(10.0 / 280.0);} // Roulette position 1 ~ 0 Degrees
+            if (gamepad2.b) {roulette.setPosition(140.0 / 280.0);} // Roulette position 2 ~ 120 Degrees
+            if (gamepad2.x) {roulette.setPosition(266.0 / 280.0);} // Roulette position 3 ~ 240 Degrees
         }// a/b/x manual roulette positions
 
-        if (gamepad2.y && !shootingSequenceActive) {
-            shootingSequenceActive = true;
-            shootingStep = 0;
-            actionTimer.resetTimer();
-        } //Start of 3 ball shooting sequence
-        if (shootingSequenceActive) {
-            shootingSequence();
-        } // End of 3 ball shooting sequence
-
-
         if (gamepad2.dpad_up && !transferActive) {
-            BallTransfer.setPower(-0.65);
+            BallTransfer.setPower(0.65);
             transferTimer.resetTimer();
             transferActive = true; //Artifact transfer code
         } //Artifact transfer code
@@ -229,7 +194,7 @@ public class TylerSmells extends OpMode {
         } //End of artifact transfer code
 
         if (gamepad2.dpad_down && !reversetransferActive) {
-            BallTransfer.setPower(0.4);
+            BallTransfer.setPower(-0.4);
             RubberBandIntake.setPower(0);
             reversetransferTimer.resetTimer();
             reversetransferActive = true;
@@ -239,6 +204,10 @@ public class TylerSmells extends OpMode {
             reversetransferActive = false;
         } //End of Reverse Artifact transfer code
 
+        //Rubber band Intake
+        if (gamepad2.dpad_right) {RubberBandIntake.setPower(-1);}
+        else if (gamepad2.dpad_left) {RubberBandIntake.setPower(1);}
+        //else {RubberBandIntake.setPower(0);}
 
         Drawing.drawDebug(follower);
         panelsTelemetry.addData("Status", "Run Time: " + runtime.toString());
@@ -255,66 +224,6 @@ public class TylerSmells extends OpMode {
         panelsTelemetry.addData("Elapsed Time", runtime);
         panelsTelemetry.update(telemetry);
     }
-
-    public void shootingSequence() {
-        switch (shootingStep) {
-            case 0:
-                roulette.setPosition(1.0 / 280.0);
-                actionTimer.resetTimer();
-                shootingStep++;
-                break;
-
-            case 1:
-                if (actionTimer.getElapsedTime() > 1500) {
-                    BallTransfer.setPower(-0.65);
-                    actionTimer.resetTimer();
-                    shootingStep++;
-                }
-                break;
-
-            case 2:
-                if (actionTimer.getElapsedTime() > 750) {
-                    BallTransfer.setPower(0);
-                    roulette.setPosition(129.0 / 280.0);
-                    actionTimer.resetTimer();
-                    shootingStep++;
-                }
-                break;
-
-            case 3:
-                if (actionTimer.getElapsedTime() > 750) {
-                    BallTransfer.setPower(-0.65);
-                    actionTimer.resetTimer();
-                    shootingStep++;
-                }
-                break;
-
-            case 4:
-                if (actionTimer.getElapsedTime() > 750) {
-                    BallTransfer.setPower(0);
-                    roulette.setPosition(261.0 / 280.0);
-                    actionTimer.resetTimer();
-                    shootingStep++;
-                }
-                break;
-
-            case 5:
-                if (actionTimer.getElapsedTime() > 750) {
-                    BallTransfer.setPower(-0.65);
-                    actionTimer.resetTimer();
-                    shootingStep = 6;
-                }
-                break;
-
-            case 6:
-                if (actionTimer.getElapsedTime() > 750) {
-                    BallTransfer.setPower(0);
-                    shootingSequenceActive = false; // DONE
-                }
-                break;
-        }
-    } //3 Ball shooting sequence method
-
     private void initAprilTag() {
 
         // Create the AprilTag processor.
@@ -415,8 +324,7 @@ public class TylerSmells extends OpMode {
         for (AprilTagDetection detection : detections) {
             // Only use tags with known positions (metadata != null)
             // and skip Obelisk tags which don't have reliable field positions
-            if (detection.metadata != null && !detection.metadata.name.contains("Obelisk")
-                    && detection.robotPose != null) {
+            if (detection.id == 20 || detection.id ==24) {
 
                 // detection.robotPose gives robot position in INCHES relative to field origin
                 double x = detection.robotPose.getPosition().x;
@@ -438,9 +346,7 @@ public class TylerSmells extends OpMode {
         for (AprilTagDetection detection : detections) {
             // Only use tags with known positions (metadata != null)
             // and skip Obelisk tags which don't have reliable field positions
-            if (detection.metadata != null && !detection.metadata.name.contains("Obelisk")
-                    && detection.robotPose != null) {
-
+            if (detection.id == 20 || detection.id ==24) {
                 // detection.robotPose gives robot position in INCHES relative to field origin
                 double yaw = detection.robotPose.getOrientation().getYaw(AngleUnit.DEGREES);
 

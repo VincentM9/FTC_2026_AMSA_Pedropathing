@@ -23,9 +23,10 @@ public class RedAutoPath {
                                 new Pose(125.164, 121.169),
 
                                 new Pose(93.492, 98.523)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(125), Math.toRadians(43))
 
+                        )
+                ).setLinearHeadingInterpolation(Math.toRadians(125), Math.toRadians(34))
+                
                 .build();
 
         Path2 = follower.pathBuilder().addPath(
@@ -35,7 +36,7 @@ public class RedAutoPath {
                                 new Pose(100.635, 83.257)
                         )
                 ).setLinearHeadingInterpolation(Math.toRadians(43), Math.toRadians(0))
-
+                
                 .build();
 
         Path3 = follower.pathBuilder().addPath(
@@ -45,7 +46,7 @@ public class RedAutoPath {
                                 new Pose(112.078, 83.339)
                         )
                 ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-
+                
                 .build();
 
         Path4 = follower.pathBuilder().addPath(
@@ -55,7 +56,7 @@ public class RedAutoPath {
                                 new Pose(125.426, 82.970)
                         )
                 ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-
+                
                 .build();
 
         Path5 = follower.pathBuilder().addPath(
@@ -65,7 +66,7 @@ public class RedAutoPath {
                                 new Pose(93.556, 98.614)
                         )
                 ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(43))
-
+                
                 .build();
 
         Path6 = follower.pathBuilder().addPath(
@@ -75,7 +76,7 @@ public class RedAutoPath {
                                 new Pose(106.364, 35.123)
                         )
                 ).setLinearHeadingInterpolation(Math.toRadians(43), Math.toRadians(0))
-
+                
                 .build();
 
         Path7 = follower.pathBuilder().addPath(
@@ -85,7 +86,7 @@ public class RedAutoPath {
                                 new Pose(121.697, 35.100)
                         )
                 ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-
+                
                 .build();
 
         Path8 = follower.pathBuilder().addPath(
@@ -95,7 +96,7 @@ public class RedAutoPath {
                                 new Pose(93.719, 98.489)
                         )
                 ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(43))
-
+                
                 .build();
 
         Path9 = follower.pathBuilder().addPath(
@@ -105,7 +106,7 @@ public class RedAutoPath {
                                 new Pose(111.540, 59.083)
                         )
                 ).setLinearHeadingInterpolation(Math.toRadians(43), Math.toRadians(0))
-
+                
                 .build();
     }
 }
